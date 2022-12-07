@@ -1,0 +1,4 @@
+Gymnasium
+opencv-python
+matplotlib
+pygame
