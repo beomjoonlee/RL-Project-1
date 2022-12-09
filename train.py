@@ -19,6 +19,9 @@ observation:
     radius
     human_radius + robot_radius
 
+action: array(2)
+  v_pref
+  angle
 
 info:
   distance: float
@@ -28,24 +31,30 @@ import gym_examples
 import gymnasium as gym
 import time
 
-env = gym.make('gym_examples/GridWorld-v0')
-env.action_space.seed(42)
 
-episode = 20000
-episode_num = 1
+def main():
+    env = gym.make('gym_examples/GridWorld-v0', render_mode='rgb_array')
+    env.action_space.seed(42)
 
-observation, info = env.reset(seed=episode_num)
+    episode = 20000
+    episode_num = 1
 
-while True:
+    observation, info = env.reset(seed=episode_num)
 
-    observation, reward, terminated, truncated, info = env.step(env.action_space.sample())
-    # print(observation)
+    while True:
+        action = env.action_space.sample()
+        state, reward, terminated, truncated, info = env.step(action)
+        # print(observation)
 
-    if terminated or truncated:
-        episode_num += 1
-        if episode_num <= episode:
-            observation, info = env.reset(seed=episode_num)
-        else:
-            break
+        if terminated or truncated:
+            episode_num += 1
+            if episode_num <= episode:
+                observation, info = env.reset(seed=episode_num)
+            else:
+                break
 
-env.close()
+    env.close()
+
+
+if __name__ == '__main__':
+    main()
