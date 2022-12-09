@@ -3,31 +3,60 @@ from gymnasium import spaces
 import pygame
 import numpy as np
 import itertools
+import random
+import time
+import copy
+
+center = [10, 12]
+circle_radius = 4
+
+time_step = 0.25
+
+robot_v_pref = 1
+
+human_num = 5
+
+discomfort_dist = 0.5
+discomfort_penalty_factor = 0.2
+
+time_limit = 3
 
 
 class GridWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode="human", size=20):
+    def __init__(self, render_mode="human", size=32):
         self.size = size  # The size of the square grid
         self.window_size = 1024  # The size of the PyGame window
 
-        self.time_step = 0.25
-
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
-        self.observation_space = spaces.Box(low=np.array(
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-             0, 0, 0, 0]),
-                                            high=np.array(
-                                                [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-                                                 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-                                                 10, 10, 10, 10]),
-                                            dtype=np.float32)
+        self.observation_space = spaces.Dict(
+            {
+                "Robot": spaces.Box(low=np.array([0, 0, 0, 0, 0]),
+                                    high=np.array([10, 10, 10, 10, 10]),
+                                    dtype=np.float32),
+                "human1": spaces.Box(low=np.array([0, 0, 0, 0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10, 10, 10, 10]),
+                                     dtype=np.float32),
+                "human2": spaces.Box(low=np.array([0, 0, 0, 0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10, 10, 10, 10]),
+                                     dtype=np.float32),
+                "human3": spaces.Box(low=np.array([0, 0, 0, 0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10, 10, 10, 10]),
+                                     dtype=np.float32),
+                "human4": spaces.Box(low=np.array([0, 0, 0, 0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10, 10, 10, 10]),
+                                     dtype=np.float32),
+                "human5": spaces.Box(low=np.array([0, 0, 0, 0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10, 10, 10, 10]),
+                                     dtype=np.float32),
+            }
+        )
 
         # We have 4 actions, corresponding to "right", "up", "left", "down", "right"
         self.action_space = spaces.Box(low=np.array([0, -np.pi / 4]),
-                                       high=np.array([1, np.pi / 4]),
+                                       high=np.array([robot_v_pref, np.pi / 4]),
                                        dtype=np.float32)
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -44,23 +73,135 @@ class GridWorldEnv(gym.Env):
         self.clock = None
 
     def _get_obs(self):
-        return {"agent": self._agent_location, "target": self._target_location}
+        return {
+            "Robot": np.array([
+                self.get_distance(self._target_location, self.robot.get_position()),
+                self.robot.v_pref,
+                self.robot.vx,
+                self.robot.vy,
+                self.robot.radius
+            ]),
+            "human1": np.array([
+                self.get_distance(self.robot.get_position(), self.humans[0].get_position()),
+                self.get_human_position_vector(self.humans[0])[0],
+                self.get_human_position_vector(self.humans[0])[1],
+                self.get_human_velocity_vector(self.humans[0])[0],
+                self.get_human_velocity_vector(self.humans[0])[1],
+                self.humans[0].radius,
+                self.humans[0].radius + self.robot.radius
+            ]),
+            "human2": np.array([
+                self.get_distance(self.robot.get_position(), self.humans[1].get_position()),
+                self.get_human_position_vector(self.humans[1])[0],
+                self.get_human_position_vector(self.humans[1])[1],
+                self.get_human_velocity_vector(self.humans[1])[0],
+                self.get_human_velocity_vector(self.humans[1])[1],
+                self.humans[1].radius,
+                self.humans[1].radius + self.robot.radius
+            ]),
+            "human3": np.array([
+                self.get_distance(self.robot.get_position(), self.humans[2].get_position()),
+                self.get_human_position_vector(self.humans[2])[0],
+                self.get_human_position_vector(self.humans[2])[1],
+                self.get_human_velocity_vector(self.humans[2])[0],
+                self.get_human_velocity_vector(self.humans[2])[1],
+                self.humans[2].radius,
+                self.humans[2].radius + self.robot.radius
+            ]),
+            "human4": np.array([
+                self.get_distance(self.robot.get_position(), self.humans[3].get_position()),
+                self.get_human_position_vector(self.humans[3])[0],
+                self.get_human_position_vector(self.humans[3])[1],
+                self.get_human_velocity_vector(self.humans[3])[0],
+                self.get_human_velocity_vector(self.humans[3])[1],
+                self.humans[3].radius,
+                self.humans[3].radius + self.robot.radius
+            ]),
+            "human5": np.array([
+                self.get_distance(self.robot.get_position(), self.humans[4].get_position()),
+                self.get_human_position_vector(self.humans[4])[0],
+                self.get_human_position_vector(self.humans[4])[1],
+                self.get_human_velocity_vector(self.humans[4])[0],
+                self.get_human_velocity_vector(self.humans[4])[1],
+                self.humans[4].radius,
+                self.humans[4].radius + self.robot.radius
+            ])
+        }
 
     def _get_info(self):
         return {
             "distance": np.linalg.norm(
-                self._agent_location - self._target_location, ord=1
+                self.robot.get_position() - self._target_location, ord=1
             )
         }
 
     def reset(self, seed=None, options=None):
         # We need the following line to seed self.np_random
         super().reset(seed=seed)
-        self.agent_radius = 3
-        self.theta = 0
-        self._agent_location = np.array([float(10), float(8)])
 
-        self._target_location = np.array([float(10), float(16)])
+        self.start = time.time()
+
+        self._target_location = np.array([float(center[0]), float(center[1] + circle_radius)])
+
+        self.robot = Robot()
+        self.robot.v_pref = robot_v_pref
+        self.robot.set_position(np.array([float(center[0]), float(center[1] - circle_radius)]))
+        self.robot.set_goal_position(self._target_location)
+
+        self.randomize_attributes = True
+
+        if seed % 4 == 1:
+            self.train_sim = "no"
+
+        elif seed % 4 == 2:
+            self.train_sim = "static"
+
+        elif seed % 4 == 3:
+            self.train_sim = "dynamic"
+
+        elif seed % 4 == 0:
+            self.train_sim = "mixed"
+
+        if self.train_sim == "no":
+            self.humans = []
+            for i in range(human_num):
+                self.humans.append(self.generate_fake_human())
+
+        elif self.train_sim == "static":
+            self.humans = []
+            total_num = 0
+            group_num = random.randrange(1, 5)
+            for i in range(group_num - 1):
+                while total_num <= human_num - (group_num - (1 + i)):
+                    member_num = random.randrange(1, 6)
+                    if total_num + member_num <= human_num - (group_num - (1 + i)):
+                        total_num += member_num
+                        break
+                self.humans += self.generate_group(member_num)
+            self.humans += self.generate_group(human_num - total_num)
+
+
+        elif self.train_sim == "dynamic":
+            self.humans = []
+            for i in range(human_num):
+                self.humans.append(self.generate_circle_crossing_human())
+
+        elif self.train_sim == "mixed":
+            self.humans = []
+            total_num = 0
+            group_num = random.randrange(1, 5)
+            for i in range(group_num):
+                while total_num < human_num - (group_num - (1 + i)):
+                    member_num = random.randrange(1, 6)
+                    if total_num + member_num < human_num - (group_num - (1 + i)):
+                        total_num += member_num
+                        break
+                self.humans += self.generate_group(member_num)
+            for i in range(human_num - total_num):
+                self.humans.append(self.generate_circle_crossing_human())
+
+        else:
+            raise ValueError("Rule doesn't exist")
 
         observation = self._get_obs()
         info = self._get_info()
@@ -71,20 +212,65 @@ class GridWorldEnv(gym.Env):
         return observation, info
 
     def step(self, action):
-        self.theta = (self.theta + action[1]) % (2 * np.pi)
-        self._agent_location[0] = self._agent_location[0] + (np.cos(self.theta) * action[0] * self.time_step)
-        self._agent_location[1] = self._agent_location[1] + (np.sin(self.theta) * action[0] * self.time_step)
-        self.vx = action[0] * np.cos(self.theta)
-        self.vy = action[0] * np.sin(self.theta)
 
-        # An episode is done iff the agent has reached the target
+        prev_dg = np.linalg.norm(self.robot.get_position() - self._target_location)
+
+        time.sleep(0.25)
+
+        self.robot.move(action)
+        for human in self.humans:
+            human.move()
+
+        current_dg = np.linalg.norm(self.robot.get_position() - self._target_location)
 
         terminated = False
+        result = None
+        success = False
+        timeout = False
+        collision = False
 
-        if np.linalg.norm(self._agent_location - self._target_location) < self.agent_radius:
+        dmin = float("inf")
+        for i, human in enumerate(self.humans):
+            dist_x = human.px - self.robot.px
+            dist_y = human.py - self.robot.py
+            dist = np.linalg.norm((dist_x, dist_y))
+            # closest distance between boundaries of two agents
+            closest_dist = dist - human.radius - self.robot.radius
+            if closest_dist < 0:
+                collision = True
+                # logging.debug("Collision: distance between robot and p{} is {:.2E}".format(i, closest_dist))
+                break
+            elif closest_dist < dmin:
+                dmin = closest_dist
+
+        self.now = time.time()
+        if float(self.now - self.start) >= time_limit:
+            timeout = True
+
+        elif current_dg <= self.robot.radius:
+            success = True
+
+        if success:
+            reward = 10
             terminated = True
+            result = "success"
 
-        reward = 1 if terminated else 0  # Binary sparse rewards
+        elif timeout:
+            reward = -10
+            terminated = True
+            result = "timeout"
+
+        elif collision:
+            reward = -20
+            terminated = True
+            result = "collision"
+
+        elif dmin < discomfort_dist:
+            reward = (dmin - discomfort_dist) * discomfort_penalty_factor
+
+        else:
+            reward = 1 - (current_dg / prev_dg)
+
         observation = self._get_obs()
         info = self._get_info()
 
@@ -112,20 +298,30 @@ class GridWorldEnv(gym.Env):
         )  # The size of a single grid square in pixels
 
         # First we draw the target
-        pygame.draw.circle(
+        pygame.draw.rect(
             canvas,
             (255, 0, 0),
-            (self._target_location) * pix_square_size,
-            0.4 * pix_square_size,
+            pygame.Rect(
+                self._target_location * pix_square_size,
+                (20, 20),
+            ),
         )
 
         # Now we draw the agent
         pygame.draw.circle(
             canvas,
             (0, 0, 255),
-            (self._agent_location) * pix_square_size,
-            0.4 * pix_square_size,
+            (self.robot.get_position()) * pix_square_size,
+            self.robot.radius * pix_square_size,
         )
+
+        for human in self.humans:
+            pygame.draw.circle(
+                canvas,
+                (0, 255, 0),
+                (human.get_position()) * pix_square_size,
+                human.radius * pix_square_size,
+            )
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
@@ -145,3 +341,184 @@ class GridWorldEnv(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
+
+    def generate_group(self, member_num):
+        while True:
+            group = []
+            center_px = random.uniform(center[0] - circle_radius, center[0] + circle_radius)
+            center_py = random.uniform(center[1] - circle_radius, center[1] + circle_radius)
+            angle = np.random.random() * np.pi * 2
+            for j in range(member_num):
+                human = self.generate_group_member(center_px, center_py, angle, member_num, j, group)
+                if human == False:
+                    group_made = False
+                    break
+                else:
+                    group.append(human)
+                    if len(group) == member_num:
+                        group_made = True
+                        break
+            if group_made:
+                return group
+
+    def generate_group_member(self, center_px, center_py, angle, member_num, j, group):
+        human = Human()
+        if self.randomize_attributes:
+            human.random_radius()
+            human.v_pref = 0
+        j_angle = angle + np.pi * 2 * j / member_num
+        px = (0.2 + member_num * 0.1) * np.cos(j_angle) + center_px
+        py = (0.2 + member_num * 0.1) * np.sin(j_angle) + center_py
+        collide = False
+        for agent in [self.robot] + self.humans + group:
+            min_dist = human.radius + agent.radius
+            if np.linalg.norm((px - agent.px, py - agent.py)) < min_dist or \
+                    np.linalg.norm((px - agent.gx, py - agent.gy)) < min_dist:
+                collide = True
+                break
+        if collide:
+            return False
+        else:
+            human.px = px
+            human.py = py
+            human.set("static")
+            return human
+
+    def generate_fake_human(self):
+        human = Human()
+        human.v_pref = 0
+        human.radius = 0.3
+        while True:
+            angle = np.random.random() * np.pi * 2
+            # add some noise to simulate all the possible cases robot could meet with human
+            px = (20) * np.cos(angle) + 10
+            py = (20) * np.sin(angle) + 12
+            collide = False
+            for agent in [self.robot] + self.humans:
+                min_dist = human.radius + agent.radius  # + self.discomfort_dist
+                if np.linalg.norm((px - agent.px, py - agent.py)) < min_dist or \
+                        np.linalg.norm((px - agent.gx, py - agent.gy)) < min_dist:
+                    collide = True
+                    break  # jump out of 'for' loop
+            if not collide:
+                break  # jump out of 'while' loop
+        human.px = px
+        human.py = py
+        human.set("static")
+        return human
+
+    def generate_circle_crossing_human(self):
+        human = Human()
+        if self.randomize_attributes:
+            human.sample_random_attributes()
+        while True:
+            angle = np.random.random() * np.pi * 2
+            # add some noise to simulate all the possible cases robot could meet with human
+            px_noise = (np.random.random() - 0.5) * human.v_pref
+            py_noise = (np.random.random() - 0.5) * human.v_pref
+            px = center[0] + (circle_radius * human.v_pref / self.robot.v_pref) * np.cos(angle) + px_noise
+            py = center[1] + (circle_radius * human.v_pref / self.robot.v_pref) * np.sin(angle) + py_noise
+            # px = (self.circle_radius) * np.cos(angle) + px_noise
+            # py = (self.circle_radius) * np.sin(angle) + py_noise
+            collide = False
+            for agent in [self.robot] + self.humans:
+                min_dist = human.radius + agent.radius  # + self.discomfort_dist
+                if np.linalg.norm((px - agent.px, py - agent.py)) < min_dist or \
+                        np.linalg.norm((px - agent.gx, py - agent.gy)) < min_dist:
+                    collide = True
+                    break  # jump out of 'for' loop
+            if not collide:
+                break  # jump out of 'while' loop
+        human.px = px
+        human.py = py
+        human.set("circle_crossing")
+        return human
+
+    def get_distance(self, agent1, agent2):
+        return np.linalg.norm((agent1[0] - agent2[0], agent1[1] - agent2[1]))
+
+    def get_human_position_vector(self, human):
+        p_vector_x = human.px - self.robot.px
+        p_vector_y = human.py - self.robot.py
+        return [p_vector_x, p_vector_y]
+
+    def get_human_velocity_vector(self, human):
+        v_vector_x = human.vx - self.robot.vx
+        v_vector_y = human.vy - self.robot.vy
+        return [v_vector_x, v_vector_y]
+
+
+class Point(object):
+    def __init__(self):
+        self.radius = 0.3
+        self.px = 0
+        self.py = 0
+        self.vx = 0
+        self.vy = 0
+        self.gx = 0
+        self.gy = 0
+        self.v_pref = 0
+        self.theta = 0
+
+    def set_position(self, position):
+        self.px = position[0]
+        self.py = position[1]
+
+    def set_goal_position(self, goal_position):
+        self.gx = goal_position[0]
+        self.gy = goal_position[1]
+
+    def get_position(self):
+        return np.array([self.px, self.py])
+
+
+class Robot(Point):
+    def __init__(self):
+        super(Robot, self).__init__()
+
+    def move(self, action):
+        self.theta = (self.theta + action[1]) % (2 * np.pi)
+        self.vx = action[0] * np.cos(self.theta)
+        self.vy = action[0] * np.sin(self.theta)
+        self.px = self.px + (self.vx * time_step)
+        self.py = self.py + (self.vy * time_step)
+
+
+class Human(Point):
+    def __init__(self):
+        super(Human, self).__init__()
+        self.v_pref = 1
+
+    def set(self, moving_way="circle_crossing"):
+        if moving_way == "circle_crossing":
+            self.gx = 20 - self.px
+            self.gy = 24 - self.py
+            vector_x = self.gx - self.px
+            vector_y = self.gy - self.py
+            self.theta = np.arctan2(vector_y, vector_x)
+
+        elif moving_way == "square_crossing":
+            self.gx = 20 - self.px
+            self.gy = self.py
+            vector_x = self.gx - self.px
+            vector_y = self.gy - self.py
+            self.theta = np.arctan2(vector_y, vector_x)
+
+        elif moving_way == "static":
+            self.gx = self.px
+            self.gy = self.py
+
+    def sample_random_attributes(self):
+        self.v_pref = np.random.uniform(0.5, 1.2)
+        self.radius = np.random.uniform(0.1, 0.6)
+
+    def random_radius(self):
+        self.radius = np.random.uniform(0.1, 0.6)
+
+    def move(self):
+        self.vx = self.v_pref * np.cos(self.theta)
+        self.vy = self.v_pref * np.sin(self.theta)
+        self.px = self.px + self.vx * time_step
+        self.py = self.py + self.vy * time_step
+        if np.linalg.norm((self.gx - self.px, self.gy - self.py)) < self.radius:
+            self.v_pref = 0
