@@ -16,15 +16,19 @@ class GridWorldEnv(gym.Env):
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
-        self.observation_space = spaces.Box(low=np.array([0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0]),
-                                            high=np.array([10,10,10,10,10, 10,10,10,10,10,10,10, 10,10,10,10,10,10,10, 10,10,10,10,10,10,10, 10,10,10,10,10,10,10, 10,10,10,10,10,10,10]),
+        self.observation_space = spaces.Box(low=np.array(
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 0, 0]),
+                                            high=np.array(
+                                                [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+                                                 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+                                                 10, 10, 10, 10]),
                                             dtype=np.float32)
 
         # We have 4 actions, corresponding to "right", "up", "left", "down", "right"
-        self.action_space = spaces.Box(low=np.array([0, -np.pi/4]),
-                                        high=np.array([1, np.pi/4]),
-                                        dtype=np.float32)
-
+        self.action_space = spaces.Box(low=np.array([0, -np.pi / 4]),
+                                       high=np.array([1, np.pi / 4]),
+                                       dtype=np.float32)
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -38,7 +42,6 @@ class GridWorldEnv(gym.Env):
         """
         self.window = None
         self.clock = None
-
 
     def _get_obs(self):
         return {"agent": self._agent_location, "target": self._target_location}
@@ -67,7 +70,6 @@ class GridWorldEnv(gym.Env):
 
         return observation, info
 
-
     def step(self, action):
         self.theta = (self.theta + action[1]) % (2 * np.pi)
         self._agent_location[0] = self._agent_location[0] + (np.cos(self.theta) * action[0] * self.time_step)
@@ -79,7 +81,7 @@ class GridWorldEnv(gym.Env):
 
         terminated = False
 
-        if np.linalg.norm(self._agent_location -self._target_location) < self.agent_radius:
+        if np.linalg.norm(self._agent_location - self._target_location) < self.agent_radius:
             terminated = True
 
         reward = 1 if terminated else 0  # Binary sparse rewards
@@ -106,7 +108,7 @@ class GridWorldEnv(gym.Env):
         canvas = pygame.Surface((self.window_size, self.window_size))
         canvas.fill((255, 255, 255))
         pix_square_size = (
-            self.window_size / self.size
+                self.window_size / self.size
         )  # The size of a single grid square in pixels
 
         # First we draw the target
