@@ -10,11 +10,15 @@ import copy
 
 
 center = [10, 12]
-circle_radius = 4 # the distance between the start point of the robot and the goal point
+circle_radius = 2 # the distance between the start point of the robot and the goal point
 
 time_step = 0.25 # the time of one step (seconds)
 
 robot_v_pref = 1 # the max speed of the robot
+
+speed_samples = 6
+rotation_samples = 7
+
 
 human_num = 5 # the number of human agents
 
@@ -23,10 +27,10 @@ random_human_state = True # the velocity and radius of human is random (True) or
 discomfort_dist = 0.5 # the distance which humans feel discomfortbale
 discomfort_penalty_factor = 0.2 # the parameter for the reward function when robot is within the distance which humans feel discomfortbale
 
-time_limit = 25 # time limit for visualization 'test'
-step_limit = 100 # step limit for training 'train
+time_limit = 10 # time limit for visualization 'test'
+step_limit = 6000 # step limit for training 'train
 
-simulation_purpose = 'test' # 'train' or 'test'
+simulation_purpose = 'train' # 'train' or 'test'
 
 if simulation_purpose == 'test':
     visualization = "human"
@@ -47,31 +51,33 @@ class CrowdNavEnv(gym.Env):
         # Observations are dictionaries with the jointstate of the environment.
         self.observation_space = spaces.Dict(
             {
-                "Robot": spaces.Box(low=np.array([0,0,0,0,0]),
+            "robot": spaces.Box(low=np.array([0,0,0,0,0]),
                                 high=np.array([10,10,10,10,10]),
                                 dtype=np.float32),
-                "human1": spaces.Box(low=np.array([0,0,0,0,0,0,0]),
-                                high=np.array([10,10,10,10,10,10,10]),
+            "human1": spaces.Box(low=np.array([0,0]),
+                                high=np.array([10,10]),
                                 dtype=np.float32),
-                "human2": spaces.Box(low=np.array([0,0,0,0,0,0,0]),
-                                high=np.array([10,10,10,10,10,10,10]),
+            "human2": spaces.Box(low=np.array([0,0]),
+                                high=np.array([10,10]),
                                 dtype=np.float32),
-                "human3": spaces.Box(low=np.array([0,0,0,0,0,0,0]),
-                                high=np.array([10,10,10,10,10,10,10]),
+            "human3": spaces.Box(low=np.array([0,0]),
+                                high=np.array([10,10]),
                                 dtype=np.float32),
-                "human4": spaces.Box(low=np.array([0,0,0,0,0,0,0]),
-                                high=np.array([10,10,10,10,10,10,10]),
+            "human4": spaces.Box(low=np.array([0,0]),
+                                high=np.array([10,10]),
                                 dtype=np.float32),
-                "human5": spaces.Box(low=np.array([0,0,0,0,0,0,0]),
-                                high=np.array([10,10,10,10,10,10,10]),
+            "human5": spaces.Box(low=np.array([0,0]),
+                                high=np.array([10,10]),
                                 dtype=np.float32),
             }
         )
 
         # We have continuous actions, [linear velocity, angular velocity]
-        self.action_space = spaces.Box(low=np.array([0, -np.pi/4]),
-                                        high=np.array([robot_v_pref, np.pi/4]),
-                                        dtype=np.float32)
+        # self.action_space = spaces.Box(low=np.array([0, -np.pi/4]),
+        #                                high=np.array([robot_v_pref, np.pi/4]),
+        #                                dtype=np.float32)
+
+        self.action_space = spaces.Discrete(42)
 
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -90,7 +96,7 @@ class CrowdNavEnv(gym.Env):
 
     def _get_obs(self):
         return {
-                    "Robot": np.array([
+                    "robot": np.array([
                             self.get_distance(self._target_location, self.robot.get_position()),
                             self.robot.v_pref,
                             self.robot.vx,
@@ -237,7 +243,8 @@ class CrowdNavEnv(gym.Env):
         prev_dg = np.linalg.norm(self.robot.get_position() - self._target_location)
 
         if simulation_purpose == 'test':
-            time.sleep(0.25)
+            #time.sleep(0.25)
+            x = 10
         else:
             self.step_num += 1
 
@@ -279,25 +286,29 @@ class CrowdNavEnv(gym.Env):
 
         # reward function
         if success: # success reward
-            reward = 10
+            reward = 100
             terminated = True
             result = "success"
+            print(result)
 
         elif timeout: # timeout reward
             reward = 0
             terminated = True
             result = "timeout"
+            print(result)
 
         elif collision: # collision reward
-            reward = -20
+            reward = -100
             terminated = True
             result = "collision"
+            print(result)
 
         elif dmin < discomfort_dist: # discomfortable distance reward
             reward = (dmin - discomfort_dist) * discomfort_penalty_factor           
 
         else: # otherwise
-            reward = 1 - (current_dg / prev_dg )
+            reward = 100 - (current_dg / prev_dg )*100
+            # reward = 0
 
         observation = self._get_obs()
         info = self._get_info()
@@ -389,10 +400,8 @@ class CrowdNavEnv(gym.Env):
                         group_made = True
                         break
             if group_made:
-                return group
-                
-
-
+                return group         
+    
     def generate_group_member(self, center_px, center_py, angle, member_num, j, group):
         human = Human()
         if self.randomize_attributes:
@@ -511,11 +520,21 @@ class Point(object):
 class Robot(Point):
     def __init__(self):
         super(Robot, self).__init__()
+        self.action_space = []
+        self.speeds = np.linspace(0, robot_v_pref, speed_samples)
+        self.rotations = np.linspace(-np.pi / 4, np.pi / 4, rotation_samples)
+        for rotation, speed in itertools.product(self.rotations, self.speeds):
+            self.action_space.append((speed, rotation))
 
     def move(self, action):
-        self.theta = (self.theta + action[1]) % (2 * np.pi)
-        self.vx = action[0] * np.cos(self.theta)
-        self.vy = action[0] * np.sin(self.theta)
+        self.theta = (self.theta + self.action_space[action][1]) % (2 * np.pi)
+        self.vx = self.action_space[action][0] * np.cos(self.theta)
+        self.vy = self.action_space[action][0] * np.sin(self.theta)
+
+        # self.theta = (self.theta + action[1]) % (2 * np.pi)
+        # self.vx =  action[0] * np.cos(self.theta)
+        # self.vy =  action[0] * np.sin(self.theta)
+
         self.px = self.px + (self.vx * time_step)
         self.py = self.py + (self.vy * time_step)
 

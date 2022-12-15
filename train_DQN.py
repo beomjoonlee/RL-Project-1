@@ -33,7 +33,7 @@ import random
 import numpy as np
 
 import gym_examples
-import gymnasium as gym
+import gym
 import time
 import torch
 import torch.nn as nn
@@ -42,9 +42,9 @@ import torch.nn.functional as F
 
 
 learning_rate = 0.005
-gamma = 0.98
-buffer_limit = 50000  # size of replay buffer
-batch_size = 32
+gamma = 0.99
+buffer_limit = 1000000  # size of replay buffer
+batch_size = 64
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -78,12 +78,40 @@ class ReplayBuffer():
         return len(self.buffer)
 
 
+class DuelingQnet(nn.Module):
+    def __init__(self):
+        super(DuelingQnet, self).__init__()
+        self.fc1 = nn.Linear(15, 256)
+        self.fc_value = nn.Linear(256, 256)
+        self.fc_adv = nn.Linear(256, 256)
+        self.value = nn.Linear(256, 42)
+        self.adv = nn.Linear(256, 42)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        v = F.relu(self.fc_value(x))
+        a = F.relu(self.fc_adv(x))
+        v = self.value(v)
+        a = self.adv(a)
+        a_avg = torch.mean(a)
+        q = v + a - a_avg
+        return q
+
+    def sample_action(self, obs, epsilon):
+        out = self.forward(obs)
+        coin = random.random()
+        if coin < epsilon:
+            return random.randint(0,41)
+
+        else : 
+            return out.argmax().item()
+
 class Qnet(nn.Module):
     def __init__(self):
         super(Qnet, self).__init__()
-        self.fc1 = nn.Linear(40, 256)
+        self.fc1 = nn.Linear(25, 256)
         self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 2)
+        self.fc3 = nn.Linear(256, 42)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -91,14 +119,14 @@ class Qnet(nn.Module):
         x = self.fc3(x)
         return x
 
-    def sample_action(self, obs, epsilon=0):
+    def sample_action(self, obs, epsilon=1.0):
         out = self.forward(obs)
         coin = random.random()
         if coin < epsilon:
-            return random.randint(0, 1)
+            return random.randint(0, 41)
         else:
             # return out.argmax().item()
-            return out
+            return out.argmax().item()
 
 
 def train(q, q_target, memory, optimizer):
@@ -106,11 +134,11 @@ def train(q, q_target, memory, optimizer):
         s, a, r, s_prime, done_mask = memory.sample(batch_size)
 
         q_out = q(s)
-        # q_a = q_out.gather(1, a)
+        q_a = q_out.gather(1, a)
 
         # DQN
-        # max_q_prime = q_target(s_prime).max(1)[0].unsqueeze(1)
-        max_q_prime = q_target(s_prime)
+        max_q_prime = q_target(s_prime).max(1)[0].unsqueeze(1)
+        #max_q_prime = q_target(s_prime)
 
         # Double DQN
         # argmax_Q = q(s_prime).max(1)[1].unsqueeze(1)
@@ -119,7 +147,7 @@ def train(q, q_target, memory, optimizer):
         target = r + gamma * max_q_prime * done_mask
 
         # MSE Loss
-        loss = F.mse_loss(q_out, target)
+        loss = F.mse_loss(q_a, target)
 
         # Smooth L1 Loss
         # loss = F.smooth_l1_loss(q_a, target)
@@ -141,37 +169,37 @@ def state_to_nparray(state):
 
 
 def main():
-    env = gym.make('gym_examples/GridWorld-v0', render_mode='rgb_array')
-    env.action_space.seed(42)
+    env = gym.make('gym_examples/CrowdNav-v0')
+    # env.action_space.seed(42)
 
     episode = 20000
     total_reward = 0
-
-    done = False
+    episode_reward = 0
 
     q = Qnet().to(device)
     q_target = Qnet().to(device)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
-    epsilon = 0.1
-
     optimizer = optim.Adam(q.parameters(), lr=learning_rate)
+    epsilon = 1.0
 
     for episode_num in range(1, episode + 1):
-        state, info = env.reset(seed=episode_num)
+        epsilon = max(0.1, epsilon*0.99) 
+        state, info = env.reset(seed=(episode_num*4+1))
         state = state_to_nparray(state)
+        done = False
 
         while not done:
             # if random.uniform(0, 1) < epsilon:
             #     action = env.action_space.sample()
             # else:
-            action = q.sample_action(torch.tensor(state).to(device))
-
-            action = action.cpu().detach().numpy()
+            action = q.sample_action(torch.from_numpy(state).to(device), epsilon)
+            #print("@@@", action)
 
             next_state, reward, terminated, truncated, info = env.step(action)
             next_state = state_to_nparray(next_state)
             total_reward += reward
+            episode_reward += reward
             # print(observation)
 
             if terminated or truncated:
@@ -182,9 +210,11 @@ def main():
             state = next_state
 
             if done:
+                print(episode_reward)
+                episode_reward = 0
                 break
-
-        if memory.size() > 2000:
+        
+        if memory.size() > 500000:
             train(q, q_target, memory, optimizer)
 
         if episode_num % 10 == 0:

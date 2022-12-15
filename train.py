@@ -2,6 +2,9 @@ import gym_examples
 import gym
 import time
 
+
+
+
 env = gym.make('gym_examples/CrowdNav-v0')
 env.action_space.seed(42)
 
@@ -13,7 +16,6 @@ observation, info = env.reset(seed=episode_num)
 while True:
 
     observation, reward, terminated, truncated, info = env.step(env.action_space.sample())
-    print(observation)
 
     if (terminated or truncated):
         episode_num += 1
