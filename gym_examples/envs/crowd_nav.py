@@ -16,8 +16,8 @@ time_step = 0.25 # the time of one step (seconds)
 
 robot_v_pref = 1 # the max speed of the robot
 
-speed_samples = 6
-rotation_samples = 7
+speed_samples = 3
+rotation_samples = 5
 
 
 human_num = 5 # the number of human agents
@@ -28,7 +28,7 @@ discomfort_dist = 0.5 # the distance which humans feel discomfortbale
 discomfort_penalty_factor = 0.2 # the parameter for the reward function when robot is within the distance which humans feel discomfortbale
 
 time_limit = 10 # time limit for visualization 'test'
-step_limit = 6000 # step limit for training 'train
+step_limit = 100 # step limit for training 'train
 
 simulation_purpose = 'train' # 'train' or 'test'
 
@@ -77,7 +77,7 @@ class CrowdNavEnv(gym.Env):
         #                                high=np.array([robot_v_pref, np.pi/4]),
         #                                dtype=np.float32)
 
-        self.action_space = spaces.Discrete(42)
+        self.action_space = spaces.Discrete(speed_samples*rotation_samples)
 
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -107,46 +107,46 @@ class CrowdNavEnv(gym.Env):
                             self.get_distance(self.robot.get_position(), self.humans[0].get_position()),
                             self.get_human_position_vector(self.humans[0])[0],
                             self.get_human_position_vector(self.humans[0])[1],
-                            self.get_human_velocity_vector(self.humans[0])[0],
-                            self.get_human_velocity_vector(self.humans[0])[1],
-                            self.humans[0].radius,
-                            self.humans[0].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[0])[0],
+                            # self.get_human_velocity_vector(self.humans[0])[1],
+                            # self.humans[0].radius,
+                            # self.humans[0].radius + self.robot.radius
                             ]),
                     "human2": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[1].get_position()),
                             self.get_human_position_vector(self.humans[1])[0],
                             self.get_human_position_vector(self.humans[1])[1],
-                            self.get_human_velocity_vector(self.humans[1])[0],
-                            self.get_human_velocity_vector(self.humans[1])[1],
-                            self.humans[1].radius,
-                            self.humans[1].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[1])[0],
+                            # self.get_human_velocity_vector(self.humans[1])[1],
+                            # self.humans[1].radius,
+                            # self.humans[1].radius + self.robot.radius
                             ]),
                     "human3": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[2].get_position()),
                             self.get_human_position_vector(self.humans[2])[0],
                             self.get_human_position_vector(self.humans[2])[1],
-                            self.get_human_velocity_vector(self.humans[2])[0],
-                            self.get_human_velocity_vector(self.humans[2])[1],
-                            self.humans[2].radius,
-                            self.humans[2].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[2])[0],
+                            # self.get_human_velocity_vector(self.humans[2])[1],
+                            # self.humans[2].radius,
+                            # self.humans[2].radius + self.robot.radius
                             ]),
                     "human4": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[3].get_position()),
                             self.get_human_position_vector(self.humans[3])[0],
                             self.get_human_position_vector(self.humans[3])[1],
-                            self.get_human_velocity_vector(self.humans[3])[0],
-                            self.get_human_velocity_vector(self.humans[3])[1],
-                            self.humans[3].radius,
-                            self.humans[3].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[3])[0],
+                            # self.get_human_velocity_vector(self.humans[3])[1],
+                            # self.humans[3].radius,
+                            # self.humans[3].radius + self.robot.radius
                             ]),
                     "human5": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[4].get_position()),
                             self.get_human_position_vector(self.humans[4])[0],
                             self.get_human_position_vector(self.humans[4])[1],
-                            self.get_human_velocity_vector(self.humans[4])[0],
-                            self.get_human_velocity_vector(self.humans[4])[1],
-                            self.humans[4].radius,
-                            self.humans[4].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[4])[0],
+                            # self.get_human_velocity_vector(self.humans[4])[1],
+                            # self.humans[4].radius,
+                            # self.humans[4].radius + self.robot.radius
                             ])
                     }
 
@@ -256,7 +256,7 @@ class CrowdNavEnv(gym.Env):
         current_dg = np.linalg.norm(self.robot.get_position() - self._target_location)
 
         terminated = False
-        result = None
+        result = "moving"
         success = False
         timeout = False
         collision = False
@@ -289,26 +289,26 @@ class CrowdNavEnv(gym.Env):
             reward = 100
             terminated = True
             result = "success"
-            print(result)
+            # print(result)
 
         elif timeout: # timeout reward
             reward = 0
             terminated = True
             result = "timeout"
-            print(result)
+            # print(result)
 
         elif collision: # collision reward
             reward = -100
             terminated = True
             result = "collision"
-            print(result)
+            # print(result)
 
         elif dmin < discomfort_dist: # discomfortable distance reward
             reward = (dmin - discomfort_dist) * discomfort_penalty_factor           
 
         else: # otherwise
-            reward = 100 - (current_dg / prev_dg )*100
-            # reward = 0
+            # reward = 100 - (current_dg / prev_dg )*100
+            reward = 0
 
         observation = self._get_obs()
         info = self._get_info()
@@ -316,7 +316,7 @@ class CrowdNavEnv(gym.Env):
         if self.render_mode == "human":
             self._render_frame()
 
-        return observation, reward, terminated, False, info
+        return observation, reward, terminated, result, info
 
     def render(self):
         if self.render_mode == "rgb_array":

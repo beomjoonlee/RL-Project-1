@@ -21,7 +21,7 @@ class ReinforceAgent():
     def __init__(self, state_size, action_size):
         # self.pub_result = rospy.Publisher('result', Float32MultiArray, queue_size=5)
         self.dirPath = os.path.dirname(os.path.realpath(__file__))
-        self.dirPath = self.dirPath.replace('RL-Project', 'RL-Project/gym_examples/models')
+        self.dirPath = self.dirPath.replace('RL-Project-master', 'RL-Project-master/models/model')
         # self.result = Float32MultiArray()
 
         self.load_model = False
@@ -29,14 +29,14 @@ class ReinforceAgent():
         self.state_size = state_size
         self.action_size = action_size
         self.episode_step = 6000
-        self.target_update = 20000 ###
+        self.target_update = 300000 ###
         self.discount_factor = 0.99
         self.learning_rate = 0.00025
         self.epsilon = 1.0
-        self.epsilon_decay = 0.99
+        self.epsilon_decay = 0.999
         self.epsilon_min = 0.05
         self.batch_size = 64
-        self.train_start = 640 ###
+        self.train_start = 100000 ###
         self.memory = deque(maxlen=1000000)
 
         self.model = self.buildModel()
@@ -140,8 +140,8 @@ def main():
     # result = Float32MultiArray()
     # get_action = Float32MultiArray()
 
-    state_size = 40
-    action_size = 42
+    state_size = 20
+    action_size = 15
 
     # env = Env(action_size)
     env = gym.make('gym_examples/CrowdNav-v0')
@@ -159,7 +159,7 @@ def main():
         score = 0
         for t in range(agent.episode_step):
             action = agent.getAction(state)
-            next_state, reward, done, truncated, info = env.step(action)
+            next_state, reward, done, result, info = env.step(action)
             next_state = state_to_nparray(next_state)
 
             agent.appendMemory(state, action, reward, next_state, done)
@@ -175,16 +175,18 @@ def main():
             # get_action.data = [action, score, reward]
             # pub_get_action.publish(get_action)
 
-            if e % 10 == 0:
+            if e % 100 == 0:
                 agent.model.save(agent.dirPath + str(e) + '.h5')
                 with open(agent.dirPath + str(e) + '.json', 'w') as outfile:
                     json.dump(param_dictionary, outfile)
 
-            if t >= 500:
-                # rospy.loginfo("Time out!!")
-                done = True
+            # if t >= 100:
+            #     # rospy.loginfo("Time out!!")
+            #     print("timeout")
+            #     done = True
 
             if done:
+                print("episode ",e,": ", result)
                 # result.data = [score, np.max(agent.q_value)]
                 # pub_result.publish(result)
                 agent.updateTargetModel()

@@ -81,7 +81,7 @@ class ReplayBuffer():
 class DuelingQnet(nn.Module):
     def __init__(self):
         super(DuelingQnet, self).__init__()
-        self.fc1 = nn.Linear(15, 256)
+        self.fc1 = nn.Linear(40, 256)
         self.fc_value = nn.Linear(256, 256)
         self.fc_adv = nn.Linear(256, 256)
         self.value = nn.Linear(256, 42)
@@ -109,7 +109,7 @@ class DuelingQnet(nn.Module):
 class Qnet(nn.Module):
     def __init__(self):
         super(Qnet, self).__init__()
-        self.fc1 = nn.Linear(25, 256)
+        self.fc1 = nn.Linear(40, 256)
         self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 42)
 
@@ -184,7 +184,7 @@ def main():
     epsilon = 1.0
 
     for episode_num in range(1, episode + 1):
-        epsilon = max(0.1, epsilon*0.99) 
+        epsilon = max(0.1, epsilon*0.999) 
         state, info = env.reset(seed=(episode_num*4+1))
         state = state_to_nparray(state)
         done = False
@@ -202,7 +202,7 @@ def main():
             episode_reward += reward
             # print(observation)
 
-            if terminated or truncated:
+            if terminated:
                 done = True
 
             done_mask = 0.0 if done else 1.0
