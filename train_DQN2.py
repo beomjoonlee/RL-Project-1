@@ -21,7 +21,7 @@ class ReinforceAgent():
     def __init__(self, state_size, action_size):
         # self.pub_result = rospy.Publisher('result', Float32MultiArray, queue_size=5)
         self.dirPath = os.path.dirname(os.path.realpath(__file__))
-        self.dirPath = self.dirPath.replace('RL-Project/gym_examples', 'RL-Project/gym_examples/dqn2_models')
+        self.dirPath = self.dirPath.replace('RL-Project', 'RL-Project/gym_examples/dqn2_models/models')
         # self.result = Float32MultiArray()
 
         self.load_model = True
