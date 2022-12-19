@@ -16,11 +16,7 @@ time_step = 0.25 # the time of one step (seconds)
 
 robot_v_pref = 1.0 # the max speed of the robot
 
-<<<<<<< HEAD
 speed_samples = 6
-=======
-speed_samples = 3
->>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
 rotation_samples = 5
 
 
@@ -32,11 +28,7 @@ discomfort_dist = 0.5 # the distance which humans feel discomfortbale
 discomfort_penalty_factor = 0.2 # the parameter for the reward function when robot is within the distance which humans feel discomfortbale
 
 time_limit = 10 # time limit for visualization 'test'
-<<<<<<< HEAD
 step_limit = 1000 # step limit for training 'train
-=======
-step_limit = 100 # step limit for training 'train
->>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
 
 simulation_purpose = 'train' # 'train' or 'test'
 
@@ -85,11 +77,7 @@ class CrowdNavEnv(gym.Env):
         #                                high=np.array([robot_v_pref, np.pi/4]),
         #                                dtype=np.float32)
 
-<<<<<<< HEAD
-        self.action_space = spaces.Discrete(5)
-=======
         self.action_space = spaces.Discrete(speed_samples*rotation_samples)
->>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
 
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -332,14 +320,9 @@ class CrowdNavEnv(gym.Env):
             reward = (dmin - discomfort_dist) * discomfort_penalty_factor           
 
         else: # otherwise
-<<<<<<< HEAD
             # reward = 10 - (current_dg / prev_dg )*10
             # reward = 0
             reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate) / 10
-=======
-            # reward = 100 - (current_dg / prev_dg )*100
-            reward = 0
->>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
 
         observation = self._get_obs()
         info = self._get_info()

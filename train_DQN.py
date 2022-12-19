@@ -81,19 +81,11 @@ class ReplayBuffer():
 class DuelingQnet(nn.Module):
     def __init__(self):
         super(DuelingQnet, self).__init__()
-<<<<<<< HEAD
         self.fc1 = nn.Linear(17, 128)
         self.fc_value = nn.Linear(128, 128)
         self.fc_adv = nn.Linear(128, 128)
         self.value = nn.Linear(128, 1)
         self.adv = nn.Linear(128, 5)
-=======
-        self.fc1 = nn.Linear(40, 256)
-        self.fc_value = nn.Linear(256, 256)
-        self.fc_adv = nn.Linear(256, 256)
-        self.value = nn.Linear(256, 42)
-        self.adv = nn.Linear(256, 42)
->>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -117,15 +109,9 @@ class DuelingQnet(nn.Module):
 class Qnet(nn.Module):
     def __init__(self):
         super(Qnet, self).__init__()
-<<<<<<< HEAD
         self.fc1 = nn.Linear(17, 128)
         self.fc2 = nn.Linear(128, 128)
         self.fc3 = nn.Linear(128, 5)
-=======
-        self.fc1 = nn.Linear(40, 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 42)
->>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -199,11 +185,7 @@ def main():
 
     for episode_num in range(1, episode + 1):
         epsilon = max(0.1, epsilon*0.999) 
-<<<<<<< HEAD
         state, info = env.reset(seed=(episode_num*4+2))
-=======
-        state, info = env.reset(seed=(episode_num*4+1))
->>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
         state = state_to_nparray(state)
         done = False
 
