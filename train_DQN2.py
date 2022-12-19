@@ -21,7 +21,11 @@ class ReinforceAgent():
     def __init__(self, state_size, action_size):
         # self.pub_result = rospy.Publisher('result', Float32MultiArray, queue_size=5)
         self.dirPath = os.path.dirname(os.path.realpath(__file__))
+<<<<<<< HEAD
         self.dirPath = self.dirPath.replace('RL-Project/gym_examples', 'RL-Project/gym_examples/dqn2_models')
+=======
+        self.dirPath = self.dirPath.replace('RL-Project-master', 'RL-Project-master/models/model')
+>>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
         # self.result = Float32MultiArray()
 
         self.load_model = True
@@ -29,14 +33,22 @@ class ReinforceAgent():
         self.state_size = state_size
         self.action_size = action_size
         self.episode_step = 6000
+<<<<<<< HEAD
         self.target_update = 2000
+=======
+        self.target_update = 300000 ###
+>>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
         self.discount_factor = 0.99
         self.learning_rate = 0.00025
         self.epsilon = 1.0
-        self.epsilon_decay = 0.99
+        self.epsilon_decay = 0.999
         self.epsilon_min = 0.05
         self.batch_size = 64
+<<<<<<< HEAD
         self.train_start = 10000
+=======
+        self.train_start = 100000 ###
+>>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
         self.memory = deque(maxlen=1000000)
 
         self.model = self.buildModel()
@@ -140,8 +152,13 @@ def main():
     # result = Float32MultiArray()
     # get_action = Float32MultiArray()
 
+<<<<<<< HEAD
     state_size = 17
     action_size = 5
+=======
+    state_size = 20
+    action_size = 15
+>>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
 
     # env = Env(action_size)
     env = gym.make('gym_examples/CrowdNav-v0')
@@ -159,7 +176,7 @@ def main():
         score = 0
         for t in range(agent.episode_step):
             action = agent.getAction(state)
-            next_state, reward, done, truncated, info = env.step(action)
+            next_state, reward, done, result, info = env.step(action)
             next_state = state_to_nparray(next_state)
 
             agent.appendMemory(state, action, reward, next_state, done)
@@ -175,17 +192,25 @@ def main():
             # get_action.data = [action, score, reward]
             # pub_get_action.publish(get_action)
 
-            if e % 10 == 0:
+            if e % 100 == 0:
                 agent.model.save(agent.dirPath + str(e) + '.h5')
                 with open(agent.dirPath + str(e) + '.json', 'w') as outfile:
                     json.dump(param_dictionary, outfile)
 
+<<<<<<< HEAD
             if t >= 100:
                 # rospy.loginfo("Time out!!")
                 print("Timeout")
                 done = True
+=======
+            # if t >= 100:
+            #     # rospy.loginfo("Time out!!")
+            #     print("timeout")
+            #     done = True
+>>>>>>> ed068558b1d9328d597eeddf0afa72c0cab70bf5
 
             if done:
+                print("episode ",e,": ", result)
                 # result.data = [score, np.max(agent.q_value)]
                 # pub_result.publish(result)
                 agent.updateTargetModel()
