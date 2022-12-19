@@ -81,11 +81,11 @@ class ReplayBuffer():
 class DuelingQnet(nn.Module):
     def __init__(self):
         super(DuelingQnet, self).__init__()
-        self.fc1 = nn.Linear(15, 256)
-        self.fc_value = nn.Linear(256, 256)
-        self.fc_adv = nn.Linear(256, 256)
-        self.value = nn.Linear(256, 42)
-        self.adv = nn.Linear(256, 42)
+        self.fc1 = nn.Linear(17, 128)
+        self.fc_value = nn.Linear(128, 128)
+        self.fc_adv = nn.Linear(128, 128)
+        self.value = nn.Linear(128, 1)
+        self.adv = nn.Linear(128, 5)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -109,9 +109,9 @@ class DuelingQnet(nn.Module):
 class Qnet(nn.Module):
     def __init__(self):
         super(Qnet, self).__init__()
-        self.fc1 = nn.Linear(25, 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 42)
+        self.fc1 = nn.Linear(17, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, 5)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -123,7 +123,7 @@ class Qnet(nn.Module):
         out = self.forward(obs)
         coin = random.random()
         if coin < epsilon:
-            return random.randint(0, 41)
+            return random.randint(0, 4)
         else:
             # return out.argmax().item()
             return out.argmax().item()
@@ -184,8 +184,8 @@ def main():
     epsilon = 1.0
 
     for episode_num in range(1, episode + 1):
-        epsilon = max(0.1, epsilon*0.99) 
-        state, info = env.reset(seed=(episode_num*4+1))
+        epsilon = max(0.1, epsilon*0.999) 
+        state, info = env.reset(seed=(episode_num*4+2))
         state = state_to_nparray(state)
         done = False
 
@@ -214,7 +214,7 @@ def main():
                 episode_reward = 0
                 break
         
-        if memory.size() > 500000:
+        if memory.size() > 50000:
             train(q, q_target, memory, optimizer)
 
         if episode_num % 10 == 0:

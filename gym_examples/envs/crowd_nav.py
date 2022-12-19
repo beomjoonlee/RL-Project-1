@@ -6,18 +6,18 @@ import itertools
 import random
 import time
 import copy
-
+import math
 
 
 center = [10, 12]
-circle_radius = 2 # the distance between the start point of the robot and the goal point
+circle_radius = 4 # the distance between the start point of the robot and the goal point
 
 time_step = 0.25 # the time of one step (seconds)
 
-robot_v_pref = 1 # the max speed of the robot
+robot_v_pref = 1.0 # the max speed of the robot
 
 speed_samples = 6
-rotation_samples = 7
+rotation_samples = 5
 
 
 human_num = 5 # the number of human agents
@@ -28,11 +28,11 @@ discomfort_dist = 0.5 # the distance which humans feel discomfortbale
 discomfort_penalty_factor = 0.2 # the parameter for the reward function when robot is within the distance which humans feel discomfortbale
 
 time_limit = 10 # time limit for visualization 'test'
-step_limit = 6000 # step limit for training 'train
+step_limit = 1000 # step limit for training 'train
 
 simulation_purpose = 'train' # 'train' or 'test'
 
-if simulation_purpose == 'test':
+if simulation_purpose == 'train':
     visualization = "human"
 else:
     visualization = "rgb_array"
@@ -77,7 +77,7 @@ class CrowdNavEnv(gym.Env):
         #                                high=np.array([robot_v_pref, np.pi/4]),
         #                                dtype=np.float32)
 
-        self.action_space = spaces.Discrete(42)
+        self.action_space = spaces.Discrete(5)
 
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -96,57 +96,61 @@ class CrowdNavEnv(gym.Env):
 
     def _get_obs(self):
         return {
+                    # "robot": np.array([
+                    #         self.get_distance(self._target_location, self.robot.get_position()),
+                    #         self.robot.v_pref,
+                    #         self.robot.vx,
+                    #         self.robot.vy,
+                    #         self.robot.radius
+                    #         ]),
                     "robot": np.array([
                             self.get_distance(self._target_location, self.robot.get_position()),
-                            self.robot.v_pref,
-                            self.robot.vx,
-                            self.robot.vy,
-                            self.robot.radius
+                            self.robot.theta
                             ]),
                     "human1": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[0].get_position()),
                             self.get_human_position_vector(self.humans[0])[0],
                             self.get_human_position_vector(self.humans[0])[1],
-                            self.get_human_velocity_vector(self.humans[0])[0],
-                            self.get_human_velocity_vector(self.humans[0])[1],
-                            self.humans[0].radius,
-                            self.humans[0].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[0])[0],
+                            # self.get_human_velocity_vector(self.humans[0])[1],
+                            # self.humans[0].radius,
+                            # self.humans[0].radius + self.robot.radius
                             ]),
                     "human2": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[1].get_position()),
                             self.get_human_position_vector(self.humans[1])[0],
                             self.get_human_position_vector(self.humans[1])[1],
-                            self.get_human_velocity_vector(self.humans[1])[0],
-                            self.get_human_velocity_vector(self.humans[1])[1],
-                            self.humans[1].radius,
-                            self.humans[1].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[1])[0],
+                            # self.get_human_velocity_vector(self.humans[1])[1],
+                            # self.humans[1].radius,
+                            # self.humans[1].radius + self.robot.radius
                             ]),
                     "human3": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[2].get_position()),
                             self.get_human_position_vector(self.humans[2])[0],
                             self.get_human_position_vector(self.humans[2])[1],
-                            self.get_human_velocity_vector(self.humans[2])[0],
-                            self.get_human_velocity_vector(self.humans[2])[1],
-                            self.humans[2].radius,
-                            self.humans[2].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[2])[0],
+                            # self.get_human_velocity_vector(self.humans[2])[1],
+                            # self.humans[2].radius,
+                            # self.humans[2].radius + self.robot.radius
                             ]),
                     "human4": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[3].get_position()),
                             self.get_human_position_vector(self.humans[3])[0],
                             self.get_human_position_vector(self.humans[3])[1],
-                            self.get_human_velocity_vector(self.humans[3])[0],
-                            self.get_human_velocity_vector(self.humans[3])[1],
-                            self.humans[3].radius,
-                            self.humans[3].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[3])[0],
+                            # self.get_human_velocity_vector(self.humans[3])[1],
+                            # self.humans[3].radius,
+                            # self.humans[3].radius + self.robot.radius
                             ]),
                     "human5": np.array([
                             self.get_distance(self.robot.get_position(), self.humans[4].get_position()),
                             self.get_human_position_vector(self.humans[4])[0],
                             self.get_human_position_vector(self.humans[4])[1],
-                            self.get_human_velocity_vector(self.humans[4])[0],
-                            self.get_human_velocity_vector(self.humans[4])[1],
-                            self.humans[4].radius,
-                            self.humans[4].radius + self.robot.radius
+                            # self.get_human_velocity_vector(self.humans[4])[0],
+                            # self.get_human_velocity_vector(self.humans[4])[1],
+                            # self.humans[4].radius,
+                            # self.humans[4].radius + self.robot.radius
                             ])
                     }
 
@@ -285,8 +289,17 @@ class CrowdNavEnv(gym.Env):
             success = True
 
         # reward function
+        yaw_reward = []
+        for i in range(5):
+            angle = -np.pi / 4 + self.robot.theta + (np.pi / 8 * i) + np.pi / 2
+            tr = 1 - 4 * math.fabs(0.5 - math.modf(0.25 + 0.5 * angle % (2 * math.pi) / math.pi)[0])
+            yaw_reward.append(tr)
+
+        distance_rate = 2 ** (current_dg / (circle_radius*2))
+        reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate)
+
         if success: # success reward
-            reward = 100
+            reward = 200
             terminated = True
             result = "success"
             print(result)
@@ -298,7 +311,7 @@ class CrowdNavEnv(gym.Env):
             print(result)
 
         elif collision: # collision reward
-            reward = -100
+            reward = -200
             terminated = True
             result = "collision"
             print(result)
@@ -307,8 +320,9 @@ class CrowdNavEnv(gym.Env):
             reward = (dmin - discomfort_dist) * discomfort_penalty_factor           
 
         else: # otherwise
-            reward = 100 - (current_dg / prev_dg )*100
+            # reward = 10 - (current_dg / prev_dg )*10
             # reward = 0
+            reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate) / 10
 
         observation = self._get_obs()
         info = self._get_info()
@@ -522,14 +536,16 @@ class Robot(Point):
         super(Robot, self).__init__()
         self.action_space = []
         self.speeds = np.linspace(0, robot_v_pref, speed_samples)
-        self.rotations = np.linspace(-np.pi / 4, np.pi / 4, rotation_samples)
-        for rotation, speed in itertools.product(self.rotations, self.speeds):
-            self.action_space.append((speed, rotation))
+        self.rotations = np.linspace(-np.pi / 2, np.pi / 2, rotation_samples)
+        # for rotation, speed in itertools.product(self.rotations, self.speeds):
+        #     self.action_space.append((speed, rotation))
+        for rotation in self.rotations:
+            self.action_space.append(rotation)
 
     def move(self, action):
-        self.theta = (self.theta + self.action_space[action][1]) % (2 * np.pi)
-        self.vx = self.action_space[action][0] * np.cos(self.theta)
-        self.vy = self.action_space[action][0] * np.sin(self.theta)
+        self.theta = (self.theta + self.action_space[action]) % (2 * np.pi)
+        self.vx = self.v_pref * np.cos(self.theta)
+        self.vy = self.v_pref * np.sin(self.theta)
 
         # self.theta = (self.theta + action[1]) % (2 * np.pi)
         # self.vx =  action[0] * np.cos(self.theta)
@@ -566,11 +582,13 @@ class Human(Point):
 
     def sample_random_attributes(self):
         self.v_pref = np.random.uniform(0.5, 1.2)
-        self.radius = np.random.uniform(0.1, 0.6)
+        # self.radius = np.random.uniform(0.1, 0.6)
+
 
     
     def random_radius(self):
-        self.radius = np.random.uniform(0.1, 0.6)
+        # self.radius = np.random.uniform(0.1, 0.6)
+        self.radius = 0.3
 
 
     def move(self):
