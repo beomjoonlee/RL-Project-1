@@ -1,1 +1,1 @@
-from gym_examples.envs.crowd_nav import CrowdNavEnv
+from gym_examples_v2.envs.crowd_nav import CrowdNavEnv
