@@ -1,8 +1,8 @@
 import gym_examples
-import gym
+import gymnasium as gym
 import time
 
-env = gym.make('gym_examples/CrowdNav-v0')
+env = gym.make('gym_examples/CrowdNav-v0', render_mode='human')
 env.action_space.seed(42)
 
 episode = 20000
@@ -13,7 +13,6 @@ observation, info = env.reset(seed=episode_num)
 while True:
 
     observation, reward, terminated, truncated, info = env.step(env.action_space.sample())
-
 
     if (terminated or truncated):
         episode_num += 1
