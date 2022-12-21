@@ -1,5 +1,5 @@
 import gym_examples
-import gym
+import gymnasium as gym
 import time
 
 

@@ -33,7 +33,7 @@ import random
 import numpy as np
 
 import gym_examples
-import gym
+import gymnasium as gym
 import time
 import torch
 import torch.nn as nn
@@ -45,6 +45,8 @@ learning_rate = 0.005
 gamma = 0.99
 buffer_limit = 1000000  # size of replay buffer
 batch_size = 64
+load_model = True
+start_episode = 3000
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -101,7 +103,7 @@ class DuelingQnet(nn.Module):
         out = self.forward(obs)
         coin = random.random()
         if coin < epsilon:
-            return random.randint(0,41)
+            return random.randint(0,4)
 
         else : 
             return out.argmax().item()
@@ -109,7 +111,7 @@ class DuelingQnet(nn.Module):
 class Qnet(nn.Module):
     def __init__(self):
         super(Qnet, self).__init__()
-        self.fc1 = nn.Linear(17, 128)
+        self.fc1 = nn.Linear(23, 128)
         self.fc2 = nn.Linear(128, 128)
         self.fc3 = nn.Linear(128, 5)
 
@@ -176,15 +178,20 @@ def main():
     total_reward = 0
     episode_reward = 0
 
-    q = Qnet().to(device)
-    q_target = Qnet().to(device)
-    q_target.load_state_dict(q.state_dict())
+    if load_model:
+        q = torch.load(f'./gym_examples/dqn_model/model_q' + str(start_episode) + '.pt')
+        q_target = torch.load(f'./gym_examples/dqn_model/model_q_target' + str(start_episode) + '.pt')
+        epsilon = 0.1
+    else:
+        q = Qnet().to(device)
+        q_target = Qnet().to(device)
+        q_target.load_state_dict(q.state_dict())
+        epsilon = 1.0
     memory = ReplayBuffer()
     optimizer = optim.Adam(q.parameters(), lr=learning_rate)
-    epsilon = 1.0
 
-    for episode_num in range(1, episode + 1):
-        epsilon = max(0.1, epsilon*0.999) 
+    for episode_num in range(start_episode, episode + 1):
+        epsilon = max(0.1, epsilon*0.99) 
         state, info = env.reset(seed=(episode_num*4+2))
         state = state_to_nparray(state)
         done = False
@@ -195,8 +202,7 @@ def main():
             # else:
             action = q.sample_action(torch.from_numpy(state).to(device), epsilon)
             #print("@@@", action)
-
-            next_state, reward, terminated, truncated, info = env.step(action)
+            next_state, reward, terminated, result, info = env.step(action)
             next_state = state_to_nparray(next_state)
             total_reward += reward
             episode_reward += reward
@@ -210,7 +216,7 @@ def main():
             state = next_state
 
             if done:
-                print(episode_reward)
+                print(result, episode_reward)
                 episode_reward = 0
                 break
         
@@ -219,6 +225,9 @@ def main():
 
         if episode_num % 10 == 0:
             print(f'n_episode: {episode_num}, avg_reward: {total_reward / episode_num:.4f}')
+            if episode_num % 1000 == 0:
+                torch.save(q, f'./gym_examples/dqn_model/model_q' + str(episode_num) + '.pt')
+                torch.save(q_target, f'./gym_examples/dqn_model/model_q_target' + str(episode_num) + '.pt')
 
     env.close()
 

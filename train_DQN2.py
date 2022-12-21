@@ -4,7 +4,7 @@ import numpy as np
 import random
 import time
 import sys
-import gym
+import gymnasium as gym
 import gym_examples
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from collections import deque
