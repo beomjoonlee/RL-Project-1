@@ -23,7 +23,7 @@ random_human_state = True  # the velocity and radius of human is random (True) o
 discomfort_dist = 0.5  # the distance which humans feel discomfortbale
 discomfort_penalty_factor = 0.2  # the parameter for the reward function when robot is within the distance which humans feel discomfortbale
 
-time_limit = 20  # time limit for visualization 'test'
+# time_limit = 20  # time limit for visualization 'test'
 step_limit = 300  # step limit for training 'train
 
 
@@ -352,8 +352,8 @@ class CrowdNavEnv(gym.Env):
             result = "collision"
             # print(result)
 
-        elif dmin < discomfort_dist:  # discomfortable distance reward
-            reward = (dmin - discomfort_dist) * discomfort_penalty_factor
+        # elif dmin < discomfort_dist:  # discomfortable distance reward
+        #     reward = (dmin - discomfort_dist) * discomfort_penalty_factor
 
         else:  # otherwise
             # reward = 10 - (current_dg / prev_dg )*10
@@ -389,7 +389,7 @@ class CrowdNavEnv(gym.Env):
         # First we draw the target
         pygame.draw.rect(
             canvas,
-            (255, 0, 0),
+            (0, 0, 255),
             pygame.Rect(
                 self._target_location * pix_square_size,
                 (20, 20),
@@ -399,9 +399,25 @@ class CrowdNavEnv(gym.Env):
         # Now we draw the agent
         pygame.draw.circle(
             canvas,
-            (0, 0, 255),
+            (255, 255, 0),
             (self.robot.get_position()) * pix_square_size,
             self.robot.radius * pix_square_size,
+        )
+
+        robot_center_x = self.robot.get_position()[0] * pix_square_size
+        robot_center_y = self.robot.get_position()[1] * pix_square_size
+
+        triangle_ratio = pix_square_size * 0.9
+        point1 = [self.robot.radius * np.cos(self.robot.theta) * triangle_ratio, self.robot.radius * np.sin(self.robot.theta) * triangle_ratio]
+        point2 = [self.robot.radius * np.sin(self.robot.theta) * triangle_ratio, -self.robot.radius * np.cos(self.robot.theta) * triangle_ratio]
+        point3 = [-self.robot.radius * np.sin(self.robot.theta) * triangle_ratio, self.robot.radius * np.cos(self.robot.theta) * triangle_ratio]
+
+        pygame.draw.polygon(
+            canvas,
+            (255, 0, 0),
+            [((point1[0] + robot_center_x), (point1[1] + robot_center_y)),
+            ((point2[0] + robot_center_x), (point2[1] + robot_center_y)),
+            ((point3[0] + robot_center_x), (point3[1] + robot_center_y))],
         )
 
         for human in self.humans:
