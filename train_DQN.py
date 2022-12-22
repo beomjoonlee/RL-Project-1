@@ -36,6 +36,8 @@ import os
 
 import shutil
 
+import wandb
+
 import gym_examples
 import gymnasium as gym
 import time
@@ -262,11 +264,16 @@ def main(args):
                 # print(result, episode_reward)
                 break
 
+        if args.wandb:
+            wandb.log({'episode': episode_num, 'reward': episode_reward})
+
         if memory.size() > buffer_limit * 0.3:
             train(q, q_target, memory, optimizer)
 
         if episode_num % print_interval == 0:
             avg_reward = total_reward / print_interval
+            avg_steps = total_steps / print_interval
+            avg_success = success_count / print_interval
 
             if max_avg_reward < avg_reward:
                 checkpoint_file = f'model_q{str(episode_num)}.pt'
@@ -276,7 +283,12 @@ def main(args):
 
             q_target.load_state_dict(q.state_dict())
             print(
-                f'n_episode: {episode_num}, buffer: {memory.size()}, avg_steps: {total_steps / print_interval}, avg_reward: {avg_reward:.4f}, eps: {epsilon * 100:.2f}, success_rate: {success_count / print_interval * 100:.2f}')
+                f'n_episode: {episode_num}, buffer: {memory.size()}, avg_steps: {avg_steps}, avg_reward: {avg_reward:.4f}, eps: {epsilon * 100:.2f}, success_rate: {avg_success * 100:.2f}%')
+
+            if args.wandb:
+                wandb.log({'episode': episode_num, 'avg_steps': avg_steps, 'epsilon': epsilon, 'avg_reward': avg_reward,
+                           'avg_success': avg_success})
+
             total_reward = 0
             total_steps = 0
             success_count = 0
@@ -287,12 +299,16 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default='train', type=str, help='train or test')
-    parser.add_argument('--env_seed', default='1', type=int, help='1: no, 2: static, 3: dynamic, 4: mixed')
+    parser.add_argument('--env_seed', default='2', type=int, help='1: no, 2: static, 3: dynamic, 4: mixed')
     parser.add_argument('--model_path', default='./models', type=str, help='model path')
-    parser.add_argument('--model_name', default='dqn_model', type=str, help='algorithm name')
+    parser.add_argument('--model_name', default='dueling_dqn', type=str, help='algorithm name')
     parser.add_argument('--checkpoint_file', default='model.pt', type=str, help='saved model file')
     parser.add_argument('--overwrite', default=False, type=str2bool, help='overwrite model path (true/false)')
+    parser.add_argument('--wandb', default=False, type=str2bool, help='overwrite model path (true/false)')
     args = parser.parse_args()
+
+    if args.wandb:
+        wandb.init(project="CrowdNav-RL", name='Dueling-DQN')
 
     if args.mode == 'train':
         save_path = os.path.join(args.model_path, args.model_name)
