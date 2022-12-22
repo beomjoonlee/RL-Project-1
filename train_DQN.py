@@ -52,9 +52,8 @@ learning_rate = 0.005
 gamma = 0.99
 buffer_limit = 50000  # size of replay buffer
 batch_size = 64
-load_model = True
-start_episode = 3000
 print_interval = 20
+episode = 1000
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -179,12 +178,6 @@ def state_to_nparray(state):
 
 
 def main(args):
-    episode = 20000
-    total_reward = 0
-    total_steps = 0
-    max_avg_reward = -1000
-    success_count = 0
-
     if args.mode == 'test':
         env = gym.make('gym_examples/CrowdNav-v0', render_mode='human')
 
@@ -195,7 +188,7 @@ def main(args):
             state, info = env.reset(seed=args.env_seed)
             state = state_to_nparray(state)
             steps = 0
-            total_reward = 0
+            interval_reward = 0
 
             done = False
 
@@ -204,7 +197,7 @@ def main(args):
                 next_state, reward, terminated, result, info = env.step(action)
                 next_state = state_to_nparray(next_state)
                 steps += 1
-                total_reward += reward
+                interval_reward += reward
 
                 if terminated:
                     done = True
@@ -213,7 +206,7 @@ def main(args):
                     break
 
                 if steps % 10 == 0:
-                    print(f'steps: {steps}, avg_reward: {total_reward / steps:.4f}, total_reward: {total_reward:.4f}')
+                    print(f'steps: {steps}, avg_reward: {interval_reward / steps:.4f}, total_reward: {interval_reward:.4f}')
 
                 state = next_state
 
@@ -221,6 +214,17 @@ def main(args):
                 print(f'episode: {n_epi}')
 
         return
+
+    interval_reward = 0
+    total_reward = 0
+    interval_steps = 0
+    max_avg_reward = -1000
+    success_count = 0
+    total_success_count = 0
+    collision_count = 0
+    total_collision_count = 0
+    timeout_count = 0
+    total_timeout_count = 0
 
     env = gym.make('gym_examples/CrowdNav-v0', render_mode='rgb_array')
 
@@ -235,21 +239,18 @@ def main(args):
 
     for episode_num in range(1, episode + 1):
         # epsilon = max(0.1, epsilon * 0.99)
-        epsilon = max(0.01, 0.15 - 0.01 * (episode_num / 200))  # Linear annealing
+        epsilon = max(0.01, 0.15 - 0.01 * (episode_num / 500))  # Linear annealing
         state, info = env.reset(seed=args.env_seed)
         state = state_to_nparray(state)
         done = False
-        episode_reward = 0
 
         while not done:
             action = q.sample_action(torch.from_numpy(state).to(device), epsilon)
 
             next_state, reward, terminated, result, info = env.step(action)
             next_state = state_to_nparray(next_state)
+            interval_reward += reward
             total_reward += reward
-            episode_reward += reward
-
-            total_steps += 1
 
             if terminated:
                 done = True
@@ -261,19 +262,26 @@ def main(args):
             if done:
                 if result == 'success':
                     success_count += 1
-                # print(result, episode_reward)
+                    total_success_count += 1
+                elif result == 'collision':
+                    collision_count += 1
+                    total_collision_count += 1
+                elif result == 'timeout':
+                    timeout_count += 1
+                    total_timeout_count += 1
                 break
 
-        if args.wandb:
-            wandb.log({'episode': episode_num, 'reward': episode_reward})
+            interval_steps += 1
 
         if memory.size() > buffer_limit * 0.3:
             train(q, q_target, memory, optimizer)
 
         if episode_num % print_interval == 0:
-            avg_reward = total_reward / print_interval
-            avg_steps = total_steps / print_interval
+            avg_reward = interval_reward / print_interval
+            avg_steps = interval_steps / print_interval
             avg_success = success_count / print_interval
+            avg_collision = collision_count / print_interval
+            avg_timeout = timeout_count / print_interval
 
             if max_avg_reward < avg_reward:
                 checkpoint_file = f'model_q{str(episode_num)}.pt'
@@ -287,11 +295,18 @@ def main(args):
 
             if args.wandb:
                 wandb.log({'episode': episode_num, 'avg_steps': avg_steps, 'epsilon': epsilon, 'avg_reward': avg_reward,
-                           'avg_success': avg_success})
+                           'avg_success': avg_success, 'avg_collision': avg_collision, 'avg_timeout': avg_timeout})
 
-            total_reward = 0
-            total_steps = 0
+            interval_reward = 0
+            interval_steps = 0
             success_count = 0
+            collision_count = 0
+            timeout_count = 0
+
+    print(f'success rate: {total_success_count / episode * 100:.2f} ({total_success_count}/{episode})')
+    print(f'collision rate: {total_collision_count / episode * 100:.2f} ({total_collision_count}/{episode})')
+    print(f'timeout rate: {total_timeout_count / episode * 100:.2f} ({total_timeout_count}/{episode})')
+    print(f'average return: {total_reward / episode:.2f} ({total_reward:.2f}/{episode})')
 
     env.close()
 
