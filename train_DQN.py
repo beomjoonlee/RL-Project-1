@@ -34,6 +34,8 @@ import argparse
 import numpy as np
 import os
 
+import shutil
+
 import gym_examples
 import gymnasium as gym
 import time
@@ -41,6 +43,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+
+from utils import str2bool
 
 learning_rate = 0.005
 gamma = 0.99
@@ -287,16 +291,18 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', default='./models', type=str, help='model path')
     parser.add_argument('--model_name', default='dqn_model', type=str, help='algorithm name')
     parser.add_argument('--checkpoint_file', default='model.pt', type=str, help='saved model file')
+    parser.add_argument('--overwrite', default=False, type=str2bool, help='overwrite model path (true/false)')
     args = parser.parse_args()
 
-    try:
-        os.mkdir(args.model_path)
-    except FileExistsError:
-        pass
+    if args.mode == 'train':
+        save_path = os.path.join(args.model_path, args.model_name)
+        if args.overwrite:
+            try:
+                shutil.rmtree(save_path)
+                print(f'Delete saved path: {save_path}')
+            except FileNotFoundError:
+                pass
 
-    try:
-        os.mkdir(os.path.join(args.model_path, args.model_name))
-    except FileExistsError:
-        pass
+        os.makedirs(save_path, exist_ok=False)
 
     main(args)
