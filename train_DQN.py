@@ -53,7 +53,7 @@ gamma = 0.99
 buffer_limit = 50000  # size of replay buffer
 batch_size = 64
 print_interval = 20
-episode = 1000
+episode = 10000
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -135,7 +135,6 @@ class Qnet(nn.Module):
         if coin < epsilon:
             return random.randint(0, 4)
         else:
-            # return out.argmax().item()
             return out.argmax().item()
 
 
@@ -308,6 +307,9 @@ def main(args):
     print(f'timeout rate: {total_timeout_count / episode * 100:.2f} ({total_timeout_count}/{episode})')
     print(f'average return: {total_reward / episode:.2f} ({total_reward:.2f}/{episode})')
 
+    with open(f'result_{args.model_name}.txt', 'a', encoding='utf-8') as f:
+        f.write(f'{total_success_count / episode * 100:.2f}\t{total_collision_count / episode * 100:.2f}\t{total_timeout_count / episode * 100:.2f}\t{total_reward / episode:.2f}\n')
+
     env.close()
 
 
@@ -320,6 +322,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_file', default='model.pt', type=str, help='saved model file')
     parser.add_argument('--overwrite', default=False, type=str2bool, help='overwrite model path (true/false)')
     parser.add_argument('--wandb', default=False, type=str2bool, help='overwrite model path (true/false)')
+    parser.add_argument('--train_iters', default='1', type=int, help='number of train iterations')
     args = parser.parse_args()
 
     if args.wandb:
@@ -336,4 +339,5 @@ if __name__ == '__main__':
 
         os.makedirs(save_path, exist_ok=False)
 
-    main(args)
+    for i in range(args.train_iters):
+        main(args)

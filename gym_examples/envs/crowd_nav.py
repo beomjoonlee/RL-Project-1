@@ -329,7 +329,7 @@ class CrowdNavEnv(gym.Env):
         if self.step_num > step_limit:
             timeout = True
 
-        elif current_dg <= self.robot.radius:
+        elif current_dg <= self.robot.radius + 0.2:
             success = True
 
         # reward function
