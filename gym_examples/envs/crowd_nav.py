@@ -13,7 +13,7 @@ time_step = 1.0  # the time of one step (seconds)
 
 robot_v_pref = 0.2  # the max speed of the robot
 
-speed_samples = 6
+speed_samples = 1
 rotation_samples = 5
 
 human_num = 5  # the number of human agents
@@ -37,23 +37,23 @@ class CrowdNavEnv(gym.Env):
         # Observations are dictionaries with the jointstate of the environment.
         self.observation_space = spaces.Dict(
             {
-                "robot": spaces.Box(low=np.array([0, 0, 0, 0, 0]),
-                                    high=np.array([10, 10, 10, 10, 10]),
+                "robot": spaces.Box(low=np.array([0, 0, 0]),
+                                    high=np.array([10, 10, 10]),
                                     dtype=np.float32),
-                "human1": spaces.Box(low=np.array([0, 0]),
-                                     high=np.array([10, 10]),
+                "human1": spaces.Box(low=np.array([0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10]),
                                      dtype=np.float32),
-                "human2": spaces.Box(low=np.array([0, 0]),
-                                     high=np.array([10, 10]),
+                "human2": spaces.Box(low=np.array([0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10]),
                                      dtype=np.float32),
-                "human3": spaces.Box(low=np.array([0, 0]),
-                                     high=np.array([10, 10]),
+                "human3": spaces.Box(low=np.array([0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10]),
                                      dtype=np.float32),
-                "human4": spaces.Box(low=np.array([0, 0]),
-                                     high=np.array([10, 10]),
+                "human4": spaces.Box(low=np.array([0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10]),
                                      dtype=np.float32),
-                "human5": spaces.Box(low=np.array([0, 0]),
-                                     high=np.array([10, 10]),
+                "human5": spaces.Box(low=np.array([0, 0, 0, 0]),
+                                     high=np.array([10, 10, 10, 10]),
                                      dtype=np.float32),
             }
         )
