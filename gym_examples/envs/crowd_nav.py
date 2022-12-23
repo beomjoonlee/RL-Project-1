@@ -13,7 +13,7 @@ time_step = 1.0  # the time of one step (seconds)
 
 robot_v_pref = 0.2  # the max speed of the robot
 
-speed_samples = 6
+speed_samples = 1
 rotation_samples = 5
 
 human_num = 5  # the number of human agents
